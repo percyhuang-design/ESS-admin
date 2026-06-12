@@ -26,6 +26,10 @@ npm run dev      # http://localhost:5174(與 Aligner 5173 錯開)
 npm run build    # 改完務必跑;不要用 npx vite build(npx 可能抓到需 Node 20 的新版 Vite)
 ```
 
+**部署(GitHub Pages)**:repo `percyhuang-design/ESS-admin`,push main → `.github/workflows/deploy.yml` 自動 build+發布。
+網址 **https://percyhuang-design.github.io/ESS-admin/**。`vite.config.ts` 的 `base` 只在 build 套 `/ESS-admin/`(dev 維持 `/`,不影響本地 preview)。
+**首次需在 repo Settings → Pages → Source 選「GitHub Actions」**才會發布。
+
 ## 3. 結構與現況
 
 - `App.tsx` — Demo 身分切換(Header 下拉:員工/兩位 HR/管理員)+ page 切換;正式版改由登入身分決定
