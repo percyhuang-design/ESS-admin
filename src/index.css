@@ -1,0 +1,14 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* 深色 App header 內的身分下拉:文字與箭頭轉白 */
+.ess-header-select .ant-select-selection-item {
+  color: #fff;
+}
+.ess-header-select .ant-select-arrow {
+  color: rgba(255, 255, 255, 0.65);
+}
