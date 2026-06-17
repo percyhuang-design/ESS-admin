@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, App, Button, Card, Empty, Input, Modal, Segmented, Space, Table, Tag, Typography } from 'antd'
-import { ArrowRightOutlined } from '@ant-design/icons'
+import { Alert, App, Button, Card, Input, Modal, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { BizCategory, CATEGORY_LABEL, ChangeRequest, DemoUser, FieldChange, serviceItems } from '../../data/mock'
+import { BizCategory, CATEGORY_LABEL, ChangeRequest, changesOf, DemoUser, serviceItems } from '../../data/mock'
 import { canReview, visibleCategories } from '../../lib/permissions'
+import ChangeLines from '../../components/ChangeLines'
+import EmptyState from '../../components/EmptyState'
 import RequestReviewModal from './RequestReviewModal'
 import ConfirmActionModal from './ConfirmActionModal'
 
@@ -18,25 +20,11 @@ interface Props {
 
 const itemName = (key: string) => serviceItems.find((s) => s.key === key)?.name ?? key
 
-// 異動內容的精簡內嵌呈現:每筆「欄位:原值 → 新值」,多欄位堆疊
-const renderChanges = (changes: FieldChange[]) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-    {changes.map((c, i) => (
-      <div key={i} style={{ fontSize: 13, lineHeight: 1.5 }}>
-        <span style={{ color: '#64748B' }}>{c.field}:</span>{' '}
-        <span style={{ color: '#94A3B8' }}>{c.before}</span>
-        <ArrowRightOutlined style={{ color: '#94A3B8', margin: '0 4px', fontSize: 11 }} />
-        <span style={{ color: '#0F172A', fontWeight: 600 }}>{c.after}</span>
-      </div>
-    ))}
-  </div>
-)
-
 // 批次確認視窗清單:含異動內容,讓批次核准/退回前看得到實際變更
 const summaryColumns: ColumnsType<ChangeRequest> = [
   { title: '員工', key: 'emp', width: 96, render: (_, r) => r.employeeName },
   { title: '項目', key: 'item', width: 92, render: (_, r) => itemName(r.itemKey) },
-  { title: '異動內容', key: 'changes', render: (_, r) => renderChanges(r.changes) },
+  { title: '異動內容', key: 'changes', render: (_, r) => <ChangeLines changes={changesOf(r)} /> },
 ]
 
 export default function ReviewCenter({
@@ -50,8 +38,8 @@ export default function ReviewCenter({
   const cats = visibleCategories(user)
   const [filter, setFilter] = useState<BizCategory | 'all'>('all')
   const [active, setActive] = useState<ChangeRequest | null>(null)
-  // 單筆確認:審核 Modal 結束後彈出的獨立確認 Modal
-  const [confirm, setConfirm] = useState<{ request: ChangeRequest; type: 'approve' | 'reject' } | null>(null)
+  // 單筆確認:審核 Modal 或列表 icon 觸發後彈出的獨立確認 Modal
+  const [confirm, setConfirm] = useState<{ request: ChangeRequest; type: 'approve' | 'reject'; fromReview: boolean } | null>(null)
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [batchMode, setBatchMode] = useState<'approve' | 'reject' | null>(null)
   const [batchReason, setBatchReason] = useState('')
@@ -68,7 +56,7 @@ export default function ReviewCenter({
     setSelectedKeys([])
   }, [filter, user.id])
 
-  // active 取自最新 requests,確保抽屜內狀態隨核准/退回即時更新
+  // active 取自最新 requests,確保 Modal 內狀態隨核准/退回即時更新
   const activeReq = active ? requests.find((r) => r.id === active.id) ?? null : null
 
   // 僅「可審核且仍待審」的選取才有效
@@ -78,14 +66,14 @@ export default function ReviewCenter({
   const canBatch = rows.some((r) => canReview(user, r)) // 管理員唯讀 → 無勾選框
   const hasSensitive = selectedReqs.some((r) => r.category === 'payroll')
 
-  // 審核 Modal 發出意圖 → 關掉它、改開獨立確認 Modal(循序、不堆疊)
-  const openConfirm = (r: ChangeRequest, type: 'approve' | 'reject') => {
+  // 審核 Modal / 列表 icon 發出意圖 → 關閉來源、開獨立確認 Modal
+  const openConfirm = (r: ChangeRequest, type: 'approve' | 'reject', fromReview: boolean) => {
     setActive(null)
-    setConfirm({ request: r, type })
+    setConfirm({ request: r, type, fromReview })
   }
-  // 確認 Modal 取消 → 回到審核 Modal
+  // 取消:從審核 Modal 來的回到審核 Modal,從列表 icon 來的直接關閉
   const cancelConfirm = () => {
-    if (confirm) setActive(confirm.request)
+    if (confirm?.fromReview) setActive(confirm.request)
     setConfirm(null)
   }
   const doConfirm = (reason?: string) => {
@@ -126,16 +114,44 @@ export default function ReviewCenter({
       key: 'category',
       render: (_, r) => <Tag color="blue">{CATEGORY_LABEL[r.category]}</Tag>,
     },
-    { title: '送出時間', dataIndex: 'submittedAt', key: 'submittedAt' },
+    { title: '異動內容', key: 'changes', width: 260, render: (_, r) => <ChangeLines changes={changesOf(r)} /> },
+    { title: '送出時間', dataIndex: 'submittedAt', key: 'submittedAt', width: 132 },
     {
       title: '操作',
       key: 'action',
-      width: 90,
-      render: (_, r) => (
-        <Button type="link" style={{ padding: 0 }} onClick={() => setActive(r)}>
-          {canReview(user, r) ? '審核' : '檢視'}
-        </Button>
-      ),
+      width: 116,
+      render: (_, r) => {
+        const reviewable = canReview(user, r)
+        return (
+          <Space size={2}>
+            <Tooltip title="看申請單">
+              <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => setActive(r)} />
+            </Tooltip>
+            {reviewable && (
+              <>
+                <Tooltip title="同意">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CheckOutlined />}
+                    style={{ color: '#16A34A' }}
+                    onClick={() => openConfirm(r, 'approve', false)}
+                  />
+                </Tooltip>
+                <Tooltip title="退回">
+                  <Button
+                    type="text"
+                    size="small"
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={() => openConfirm(r, 'reject', false)}
+                  />
+                </Tooltip>
+              </>
+            )}
+          </Space>
+        )
+      },
     },
   ]
 
@@ -212,15 +228,22 @@ export default function ReviewCenter({
               }
             : undefined
         }
-        locale={{ emptyText: <Empty description="目前沒有待審申請單" /> }}
+        locale={{
+          emptyText: (
+            <EmptyState
+              title="沒有待審的申請單"
+              description="目前可審範圍內都處理完了,員工送出新申請後會出現在這裡。"
+            />
+          ),
+        }}
       />
 
       <RequestReviewModal
         open={!!activeReq}
         request={activeReq}
         canReview={!!activeReq && canReview(user, activeReq)}
-        onApproveIntent={(r) => openConfirm(r, 'approve')}
-        onRejectIntent={(r) => openConfirm(r, 'reject')}
+        onApproveIntent={(r) => openConfirm(r, 'approve', true)}
+        onRejectIntent={(r) => openConfirm(r, 'reject', true)}
         onClose={() => setActive(null)}
       />
 

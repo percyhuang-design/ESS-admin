@@ -41,7 +41,17 @@ export const STATUS_META: Record<RequestStatus, { label: string; color: string }
   rejected: { label: '已退回', color: 'red' },
 }
 
-/** 單一欄位異動(申請單核心:異動前後對照) */
+/**
+ * 申請單的「整份資料」單一欄位:value=目前值,after 有值=此欄要改成的新值(未異動則 undefined)。
+ * 這樣 Modal 能列出完整資料(含未異動欄位)供整體評估,異動部分另以 changesOf() 衍生。
+ */
+export interface RequestField {
+  field: string
+  value: string
+  after?: string
+}
+
+/** 由整份欄位衍生出「異動對照」(僅含有異動的欄位) */
 export interface FieldChange {
   field: string
   before: string
@@ -57,7 +67,7 @@ export interface ChangeRequest {
   department: string
   itemKey: string // 對應 ServiceItem.key
   category: BizCategory // 提交時由項目帶入;審核權限與分類篩選依據
-  changes: FieldChange[]
+  allFields: RequestField[] // 整份資料(含未異動欄位);異動以 after 標記
   status: RequestStatus
   submittedAt: string
   reviewedAt?: string
@@ -65,6 +75,12 @@ export interface ChangeRequest {
   rejectReason?: string // status = rejected 時必填
   resubmitOf?: string // 退回後重送時鏈結原申請單(設計保留欄位)
 }
+
+/** 取出申請單中「有異動」的欄位,轉成 before/after 對照 */
+export const changesOf = (r: ChangeRequest): FieldChange[] =>
+  r.allFields
+    .filter((f) => f.after !== undefined)
+    .map((f) => ({ field: f.field, before: f.value, after: f.after as string }))
 
 /** Demo 身分(架構期用 Header 下拉切換驗證權限;正式版由登入身分決定) */
 export interface DemoUser {
@@ -97,7 +113,12 @@ export const changeRequests: ChangeRequest[] = [
     department: '研發部',
     itemKey: 'contact',
     category: 'personal',
-    changes: [{ field: '手機號碼', before: '0912-345-678', after: '0987-654-321' }],
+    allFields: [
+      { field: '手機號碼', value: '0912-345-678', after: '0987-654-321' },
+      { field: '電子郵件', value: 'ming.wang@company.com' },
+      { field: '公司分機', value: '#2104' },
+      { field: '通訊地址', value: '台北市信義區松仁路 100 號 8 樓' },
+    ],
     status: 'pending',
     submittedAt: '2026-06-10 09:32',
   },
@@ -109,9 +130,10 @@ export const changeRequests: ChangeRequest[] = [
     department: '行銷部',
     itemKey: 'bank',
     category: 'payroll',
-    changes: [
-      { field: '銀行', before: '812 台新銀行', after: '822 中國信託' },
-      { field: '帳號', before: '****5678', after: '****1234' },
+    allFields: [
+      { field: '銀行', value: '812 台新銀行', after: '822 中國信託' },
+      { field: '帳號', value: '****5678', after: '****1234' },
+      { field: '戶名', value: '李美玲' },
     ],
     status: 'pending',
     submittedAt: '2026-06-10 14:05',
@@ -124,7 +146,11 @@ export const changeRequests: ChangeRequest[] = [
     department: '財務部',
     itemKey: 'education',
     category: 'development',
-    changes: [{ field: '新增證照', before: '—', after: 'PMP 國際專案管理師(2026/05 取得)' }],
+    allFields: [
+      { field: '最高學歷', value: '國立成功大學 資訊管理碩士' },
+      { field: '既有證照', value: '資訊安全管理師 (2023)' },
+      { field: '新增證照', value: '—', after: 'PMP 國際專案管理師 (2026/05 取得)' },
+    ],
     status: 'pending',
     submittedAt: '2026-06-11 08:50',
   },
@@ -136,7 +162,11 @@ export const changeRequests: ChangeRequest[] = [
     department: '研發部',
     itemKey: 'dependents',
     category: 'insurance',
-    changes: [{ field: '新增眷屬', before: '—', after: '王小寶(子女,2026/04/12 出生),申請加入眷屬保險' }],
+    allFields: [
+      { field: '配偶', value: '林美華' },
+      { field: '子女①', value: '王大寶 (2022/03 出生)' },
+      { field: '新增子女', value: '—', after: '王小寶 (2026/04/12 出生),申請加入眷屬保險' },
+    ],
     status: 'pending',
     submittedAt: '2026-06-11 10:21',
   },
@@ -148,7 +178,12 @@ export const changeRequests: ChangeRequest[] = [
     department: '人資部',
     itemKey: 'profile',
     category: 'personal',
-    changes: [{ field: '通訊地址', before: '台北市信義區…', after: '新北市板橋區…' }],
+    allFields: [
+      { field: '姓名', value: '陳怡君' },
+      { field: '員工編號', value: 'emp-033' },
+      { field: '通訊地址', value: '台北市信義區忠孝東路五段 8 號', after: '新北市板橋區文化路一段 50 號' },
+      { field: '戶籍地址', value: '新北市板橋區文化路一段 50 號' },
+    ],
     status: 'approved',
     submittedAt: '2026-06-02 11:18',
     reviewedAt: '2026-06-03 09:02',
@@ -162,7 +197,11 @@ export const changeRequests: ChangeRequest[] = [
     department: '業務部',
     itemKey: 'bank',
     category: 'payroll',
-    changes: [{ field: '帳號', before: '****9012', after: '****3456' }],
+    allFields: [
+      { field: '銀行', value: '700 中華郵政' },
+      { field: '帳號', value: '****9012', after: '****3456' },
+      { field: '戶名', value: '黃國倫' },
+    ],
     status: 'approved',
     submittedAt: '2026-05-29 16:40',
     reviewedAt: '2026-05-30 10:15',
@@ -176,7 +215,11 @@ export const changeRequests: ChangeRequest[] = [
     department: '研發部',
     itemKey: 'emergency',
     category: 'personal',
-    changes: [{ field: '緊急聯絡人電話', before: '02-2712-3456', after: '0911-222' }],
+    allFields: [
+      { field: '聯絡人姓名', value: '王大同' },
+      { field: '關係', value: '父子' },
+      { field: '聯絡電話', value: '02-2712-3456', after: '0911-222' },
+    ],
     status: 'rejected',
     submittedAt: '2026-06-05 13:27',
     reviewedAt: '2026-06-05 15:44',
@@ -191,7 +234,10 @@ export const changeRequests: ChangeRequest[] = [
     department: '行銷部',
     itemKey: 'education',
     category: 'development',
-    changes: [{ field: '新增學歷', before: '—', after: '國立台灣大學 EMBA(2026/06 畢業)' }],
+    allFields: [
+      { field: '最高學歷', value: '國立政治大學 企管學士' },
+      { field: '新增學歷', value: '—', after: '國立台灣大學 EMBA (2026/06 畢業)' },
+    ],
     status: 'rejected',
     submittedAt: '2026-06-06 09:10',
     reviewedAt: '2026-06-08 11:30',

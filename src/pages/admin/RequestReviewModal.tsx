@@ -1,6 +1,6 @@
 import { Alert, Button, Descriptions, Modal, Space, Table, Tag, Typography } from 'antd'
 import { ArrowRightOutlined } from '@ant-design/icons'
-import { CATEGORY_LABEL, ChangeRequest, serviceItems, STATUS_META } from '../../data/mock'
+import { CATEGORY_LABEL, ChangeRequest, RequestField, serviceItems, STATUS_META } from '../../data/mock'
 
 interface Props {
   open: boolean
@@ -55,26 +55,61 @@ export default function RequestReviewModal({ open, request, canReview, onApprove
             <Descriptions.Item label="送出時間">{r.submittedAt}</Descriptions.Item>
           </Descriptions>
 
-          <Typography.Title level={5} style={{ marginTop: 20 }}>
-            異動內容
+          <Typography.Title level={5} style={{ marginTop: 20, marginBottom: 4 }}>
+            申請資料
           </Typography.Title>
+          <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 8 }}>
+            完整資料供整體評估,<Tag color="gold" style={{ marginInline: 2 }}>本次異動</Tag>欄位以底色高亮。
+          </Typography.Paragraph>
           <Table
             size="small"
             rowKey="field"
             pagination={false}
-            dataSource={r.changes}
+            // 異動欄位排到最上面(穩定排序,組內維持原順序),未異動資料墊在下面當脈絡
+            dataSource={[...r.allFields].sort(
+              (a, b) => (a.after === undefined ? 1 : 0) - (b.after === undefined ? 1 : 0),
+            )}
+            rowClassName={(f: RequestField) => (f.after !== undefined ? 'ess-changed-row' : '')}
             columns={[
-              { title: '欄位', dataIndex: 'field', width: 120 },
               {
-                title: '原值',
-                dataIndex: 'before',
-                render: (v) => <span style={{ color: '#94A3B8' }}>{v}</span>,
+                title: '欄位',
+                dataIndex: 'field',
+                width: 130,
+                render: (v, f: RequestField) =>
+                  f.after !== undefined ? (
+                    <Space size={4}>
+                      <Tag color="gold" style={{ marginInlineEnd: 0 }}>
+                        異動
+                      </Tag>
+                      {v}
+                    </Space>
+                  ) : (
+                    v
+                  ),
               },
-              { title: '', width: 28, align: 'center', render: () => <ArrowRightOutlined style={{ color: '#94A3B8' }} /> },
               {
-                title: '新值',
+                title: '目前值',
+                dataIndex: 'value',
+                render: (v, f: RequestField) => (
+                  <span style={{ color: f.after !== undefined ? '#94A3B8' : '#475569' }}>{v}</span>
+                ),
+              },
+              {
+                title: '',
+                width: 28,
+                align: 'center',
+                render: (_, f: RequestField) =>
+                  f.after !== undefined ? <ArrowRightOutlined style={{ color: '#94A3B8' }} /> : null,
+              },
+              {
+                title: '變更後',
                 dataIndex: 'after',
-                render: (v) => <span style={{ color: '#0F172A', fontWeight: 600 }}>{v}</span>,
+                render: (v, f: RequestField) =>
+                  f.after !== undefined ? (
+                    <span style={{ color: '#0F172A', fontWeight: 600 }}>{v}</span>
+                  ) : (
+                    <span style={{ color: '#CBD5E1' }}>—</span>
+                  ),
               },
             ]}
           />

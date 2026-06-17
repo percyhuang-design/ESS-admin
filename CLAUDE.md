@@ -43,15 +43,16 @@ npm run build    # 改完務必跑;不要用 npx vite build(npx 可能抓到需 
 
 最上方 **App header** 用 `Segmented` 切換兩個工作區(`workspace` state in `App.tsx`):
 - **ESS 員工自助**:側欄=我的首頁/6 自助項目/我的申請紀錄(全 placeholder)
-- **Admin 管理後台**:側欄=審核中心/結案查詢(已實作);切換器只對 hr/admin 顯示、帶待審 badge
+- **Admin 管理後台**:側欄=審核中心/全部申請紀錄(已實作);切換器只對 hr/admin 顯示、帶待審 badge
 員工身分無此切換器;HR 本人也是員工,用切換器在「我的自助」與「審核工作」間切。
 
 ## 5. 進度
 
 - ✅ 架構骨架:側欄 IA、ESS/Admin 工作區切換、角色權限模型、申請單型別/狀態機、build 通過
-- ✅ **M1 審核中心(完成)**:真實列表(RBAC 分類過濾,多分類/管理員有分類 Segmented 篩選)、審核 **Modal**(`RequestReviewModal` 置中彈窗、異動前後對照,只顯示+發出意圖)、按「同意/拒絕」→ **關閉審核 Modal、彈出獨立確認 Modal**(`ConfirmActionModal`,**循序不堆疊**;核准=確認訊息+金流項目加警示、退回=理由必填且空白 disabled,**取消則返回審核 Modal**);**不用 Popconfirm 浮層、不疊第二層 Modal**;狀態以 `lib/useRequests.ts` 就地更新→待審 badge 連動、結案查詢即時反映。**管理員唯讀督導**(canReview=false,無 footer 僅 X 關閉,見 `lib/permissions.ts`)。曾比較 Drawer/push-panel/Modal,定案 **Modal**。
-- ✅ **批次審核(完成)**:審核中心表格 `rowSelection`(僅負責 HR 出現勾選框,**管理員唯讀無勾選**;`getCheckboxProps` 擋非可審列)+ 選取工具列。**批次核准**(確認 Modal 列出選取清單;含薪轉帳戶 payroll 跳金流警示)、**批次退回**(理由必填、明示「套用到全部 N 筆」);`useRequests.approveMany/rejectMany` 一次更新(僅作用於 pending)。換篩選/換身分自動清空選取。**確認 Modal 內嵌異動內容**(每筆「欄位:原值→新值」,多欄位堆疊,`renderChanges`)——批次核准/退回前看得到實際變更,非閉眼全過;清單過長 `scroll.y` 捲動。批次語意取捨見 `DESIGN.md`。
-- ✅ **結案查詢(M2 提前完成)**:真實表格 + 狀態/分類 Segmented + 關鍵字搜尋,明細抽屜唯讀含審核紀錄(審核人/時間/拒絕理由)。
+- ✅ **M1 審核中心(完成)**:真實列表(RBAC 分類過濾,多分類/管理員有分類 Segmented 篩選)。**列表操作欄=三個 icon**(👁看申請單 / ✓同意 / ✗退回,Tooltip;管理員唯讀只有「看」),同意/退回 icon **直接開確認 Modal**(免先開審核 Modal)。**列表「異動內容」欄**(`components/ChangeLines`,每筆「欄位:原值→新值」、多欄位堆疊)。審核 **Modal**(`RequestReviewModal` 置中彈窗,**列出完整資料含未異動欄位**供整體評估、本次異動列琥珀底色高亮+「異動」tag、before→after,只顯示+發出意圖)、按「同意/拒絕」→ **關閉審核 Modal、彈出獨立確認 Modal**(`ConfirmActionModal`,**循序不堆疊**、內含異動摘要;核准=確認訊息+金流項目加警示、退回=理由必填且空白 disabled,**取消則返回審核 Modal**);**不用 Popconfirm 浮層、不疊第二層 Modal**;狀態以 `lib/useRequests.ts` 就地更新→待審 badge 連動、結案查詢即時反映。**管理員唯讀督導**(canReview=false,無 footer 僅 X 關閉,見 `lib/permissions.ts`)。曾比較 Drawer/push-panel/Modal,定案 **Modal**。
+  - **資料模型**:`ChangeRequest.allFields`(整份欄位,`after` 標記要改的值)為單一來源;`changesOf(r)` 衍生 delta(before/after) 給列表欄、批次清單、確認摘要共用。
+- ✅ **批次審核(完成)**:審核中心表格 `rowSelection`(僅負責 HR 出現勾選框,**管理員唯讀無勾選**;`getCheckboxProps` 擋非可審列)+ 選取工具列。**批次核准**(確認 Modal 列出選取清單;含薪轉帳戶 payroll 跳金流警示)、**批次退回**(理由必填、明示「套用到全部 N 筆」);`useRequests.approveMany/rejectMany` 一次更新(僅作用於 pending)。換篩選/換身分自動清空選取。**確認 Modal 內嵌異動內容**(每筆「欄位:原值→新值」,多欄位堆疊,`components/ChangeLines`)——批次核准/退回前看得到實際變更,非閉眼全過;清單過長 `scroll.y` 捲動。批次語意取捨見 `DESIGN.md`。
+- ✅ **全部申請紀錄(`RequestRecords.tsx`,前身結案查詢)**:含**待審核**在內的所有申請單(非僅結案)。**初始空狀態**(`searched` 旗標,**先按過一次搜尋下方才出資料**;未搜尋顯示引導 Empty+搜尋鈕、標題不顯示筆數)。**按「搜尋」才套用**(draft/applied 兩層 state,輸入框 Enter=搜尋,Select/區間都不即時套用;`清除` 回到初始空狀態)。**主要條件常駐**:申請單號 / 申請人(姓名·工號) / 審核狀態。**進階條件用 Popover**(`進階選項` 鈕,有套用時顯示 •):分類 / 審核人 / 申請區間 / 審核區間 + 重置進階/套用。**Popover 完全受控**(`trigger={[]}`+按鈕 toggle)——避免內含 RangePicker 日曆(portal 到 body)被當外部點擊而誤關。**區間=`components/DateRangeField`**:**Radio 快捷**(不指定/近30天/近半年/自訂,適合 admin 歷史查詢的近況/回顧兩尺度)。選「自訂」**才展開 `RangePicker`**(預設不顯示、較乾淨);`mode` state + `deriveMode()` 由值反推,外部「清除」會同步重置。`清除` 一鍵重置全部。明細 Modal 唯讀(act 在審核中心)。
 - ⬜ M3 員工端:項目表單 → 送出產生申請單 + 我的申請紀錄 + 退回重送;M4 通知;M5 後端串接(見 `DESIGN.md` §7)
 
 ### 驗證帳號(Demo 身分切換)

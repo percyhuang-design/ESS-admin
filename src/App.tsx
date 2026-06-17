@@ -12,7 +12,7 @@ import BankAccount from './pages/ess/BankAccount'
 import Education from './pages/ess/Education'
 import MyRequests from './pages/ess/MyRequests'
 import ReviewCenter from './pages/admin/ReviewCenter'
-import ClosedRequests from './pages/admin/ClosedRequests'
+import RequestRecords from './pages/admin/RequestRecords'
 
 // 自助項目 key → 頁面(每個項目獨立檔案,後續迭代各自填入真實表單)
 const ITEM_PAGES: Record<string, JSX.Element> = {
@@ -57,8 +57,8 @@ export default function App() {
   let content: JSX.Element
   if (workspace === 'admin') {
     content =
-      page === 'closed' ? (
-        <ClosedRequests user={user} requests={requests} />
+      page === 'records' ? (
+        <RequestRecords user={user} requests={requests} />
       ) : (
         <ReviewCenter
           user={user}

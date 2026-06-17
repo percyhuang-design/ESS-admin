@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Input, Modal, Typography } from 'antd'
-import { ChangeRequest, serviceItems } from '../../data/mock'
+import { ChangeRequest, changesOf, serviceItems } from '../../data/mock'
+import ChangeLines from '../../components/ChangeLines'
 
 const itemName = (key: string) => serviceItems.find((s) => s.key === key)?.name ?? key
 
@@ -57,7 +58,18 @@ export default function ConfirmActionModal({ open, request, type, onConfirm, onC
       {r &&
         (isApprove ? (
           <>
-            <Typography.Paragraph style={{ marginBottom: 12 }}>核准 {who}?</Typography.Paragraph>
+            <Typography.Paragraph style={{ marginBottom: 8 }}>核准 {who}?</Typography.Paragraph>
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: 8,
+                padding: '8px 12px',
+                marginBottom: 12,
+              }}
+            >
+              <ChangeLines changes={changesOf(r)} />
+            </div>
             <Alert
               type={sensitive ? 'warning' : 'info'}
               showIcon
@@ -70,7 +82,18 @@ export default function ConfirmActionModal({ open, request, type, onConfirm, onC
           </>
         ) : (
           <>
-            <Typography.Paragraph style={{ marginBottom: 12 }}>退回 {who},請填寫拒絕理由(必填):</Typography.Paragraph>
+            <Typography.Paragraph style={{ marginBottom: 8 }}>退回 {who},請填寫拒絕理由(必填):</Typography.Paragraph>
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: 8,
+                padding: '8px 12px',
+                marginBottom: 12,
+              }}
+            >
+              <ChangeLines changes={changesOf(r)} />
+            </div>
             <Input.TextArea
               autoFocus
               rows={4}

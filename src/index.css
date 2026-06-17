@@ -12,3 +12,8 @@ body,
 .ess-header-select .ant-select-arrow {
   color: rgba(255, 255, 255, 0.65);
 }
+
+/* 申請單完整資料表:本次異動的列以淡琥珀底色高亮 */
+.ess-changed-row > td {
+  background: #fffbeb !important;
+}

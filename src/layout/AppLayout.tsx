@@ -67,7 +67,7 @@ export default function AppLayout({
         </Badge>
       ),
     },
-    { key: 'closed', icon: <FileSearchOutlined />, label: '結案查詢' },
+    { key: 'records', icon: <FileSearchOutlined />, label: '全部申請紀錄' },
   ]
   const menuItems = workspace === 'admin' ? adminMenu : essMenu
 
